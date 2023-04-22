@@ -4,7 +4,9 @@ var express = require("express");
 var ejs = require("ejs");
 var bodyParser = require("body-parser");
 var mongoose = require("mongoose");
-var md5 =  require("md5");
+// var md5 =  require("md5");
+const bcrypt = require("bcrypt");
+var saltRounds = 10;
 
 var app = express();
 
@@ -18,7 +20,7 @@ const userSchema  = new mongoose.Schema({
     email:String,
     password:String
 });
-
+console.log(process.env.SECRET);
 
 const User  = new mongoose.model("User",userSchema);
 
@@ -30,12 +32,13 @@ app.get("/login",(req,res)=>{
 });
 app.post("/login",(req,res)=>{
     const username = req.body.username;
-    const password = md5(req.body.password);
     User.findOne({email:username}).then((foundUser)=>{
         if(foundUser){
-            if(foundUser.password ==password){
-                res.render("secrets");
-            }
+            bcrypt.compare(req.body.password, foundUser.password, function(err, result) {
+                if(result){
+                    res.render("secrets");
+                }
+            })
         }
     })
 })
@@ -43,14 +46,19 @@ app.get("/register",(req,res)=>{
     res.render("register")
 });
 app.post("/register",(req,res)=>{
-    var newUser = new User({
-        email :req.body.username,
-        password : md5(req.body.password)
-    })
-    newUser.save().then(()=>{
-        console.log("New user added.")
-        res.render("secrets");
+
+    bcrypt.hash(req.body.password, saltRounds, function(err, hash) {
+        var newUser = new User({
+            email :req.body.username,
+            password : hash
+        })
+        newUser.save().then(()=>{
+            console.log("New user added.")
+            res.render("secrets");
+        });
     });
+
+    
 })
 
 
